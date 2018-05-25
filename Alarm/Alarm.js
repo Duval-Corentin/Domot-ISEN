@@ -26,47 +26,87 @@ module.exports = class Alarm {
     }
 
     addAlarm(alarm){
-        if(!this.testAlarmJSON(alarm)){
-            return false;
+        if(!this.testAlarmJSON(new_alarm)){
+            throw "Bad JSON Format";
+        }else if(!this.mopidy_ready){
+            throw "Mopidy is not ready yet"
         }else{
             mopidy.playlists.getPlaylists().then(playlists => {
                 var playlist_find = false;
                 for(let playlist of playlits){
-                    if(playlist.name == alarm.playlist_name){
+                    if(playlist.name == new_alarm.playlist_name){
                         playlist_find = true;
                         break;
                     }
                 }
                 if(!playlist_find){
-                    return false;
+                    throw "playlist_name didn't match any mopidy playlist"
                 }else{
                     if(alarm.active){
-                        const cron_task = Schedule.scheduledJob(this.play_timeToCron(alarm.play_time), () => {
-                            this.play(alarm.playlist_name);
-                            if(alarm.unique){
-                                this.removeAlarm(alarm);
+                        const cron_task = Schedule.scheduledJob(this.play_timeToCron(new_alarm.play_time), () => {
+                            this.play(new_alarm);
+                            if(new_alarm.unique){
+                                this.removeAlarm(new_alarm);
                             }
                         });
                     }else{
                         const cron_task = undefined;
                     }
-                    this.alarms.set(alarm, cron_task);
-                    return alarm;
+                    this.alarms.set(new_alarm, cron_task);
+                    return new_alarm;
                 }
             });
         }
     }
 
-    editAlarm(alarm){
-
+    editAlarm(new_alarm){
+        if(!this.testAlarmJSON(new_alarm)){
+            throw "Bad JSON Format"; 
+        }else if(!this.mopidy_ready){
+            throw "Mopidy is not ready yet";
+        }else{
+            for(let alarm of this.alarms.keys()){
+                if(new_alarm.name === alarm.name || new_alarm.play_time === alarm.play_time){
+                    this.removeAlarm(alarm);
+                    this.addAlarm(new_alarm);
+                    return new_alarm;
+                }
+            }
+            throw "new_alarm didn't match any existing alarm";
+        }
     }
 
-    removeAlarm(alarm){
-
+    removeAlarm(new_alarm){
+        for(let alarm of this.alarms.keys()){
+            if(new_alarm === alarm){
+                this.alarms[new_alarm].cancel();
+                this.alarms.delete(new_alarm);
+                return new_alarm;
+            }
+        }
+        throw "new_alarm didn't match any existing alarm";
     }
 
-    play(playlistName){
-
+    play(alarm){
+        if(!this.isPlaying){
+            if(!this.mopidy_ready){
+                throw "Mopidy is not ready";
+            } else {
+                var old_volume = 100;
+                this.mopidy.playlist.getPlaylists().then(playlists => {
+                    for(let playlist of playlists){
+                        if(playlist.name === alarm.playlist_name){
+                            this.mopidy.playback.getVolume().then(volume => {
+                                old_volume = volume;
+                                return this.mopidy.playback.setVolume(alarm.volume).then( () => {
+                                    this.mopidy.
+                                })
+                            })
+                        }
+                    }
+                })
+            }
+        }
     }
 
     stop(){
@@ -144,6 +184,7 @@ module.exports = class Alarm {
  var Alarm = {
     "name": String,
     "playlist_name": String,
+    "volume": Number,
     "play_time": Number,
     "snooze_time": Number,
     "unique": Boolean,
