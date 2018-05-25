@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/Duval-Corentin/Domot-ISEN/issues"
   },
-  "homepage": "https://github.com/Duval-Corentin/Domot-ISEN#readme"
+  "homepage": "https://github.com/Duval-Corentin/Domot-ISEN#readme",
+  "dependencies": {
+    "node-schedule": "^1.3.0"
+  }
 }
