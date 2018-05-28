@@ -13,10 +13,10 @@ mopidy.generatePlaylists();
 var alarm_handler = new Alarm(mopidy, true);
 
 const alarm = {
-    "name": "my_alarm_01",
+    "name": "my_alarm_03",
     "playlist_name": "playlist_1",
     "volume": 70,
-    "play_time": 20,
+    "play_time": 60,
     "snooze_time": 5,
     "unique": false,
     "active": true,
@@ -25,40 +25,49 @@ const alarm = {
             "monday": true,
             "tuesday": true,
             "wednesday": true,
-            "thursday": true,
+            "thursday": false,
             "friday": true,
             "saturday": true,
             "sunday": true
         },
-        "hour": 16,
-        "minute": 10
+        "hour": 10,
+        "minute": 51
     }
 }
 
 rl.on('line', (input) => {
     console.log(`Received: ${input}`);
 
-    switch(input){
-        case "a":
-            alarm_handler.play(alarm);
-            break;
-        case "z":
-            alarm_handler.snooze();
-            break;
-        case "e":
-            alarm_handler.stop();
-            break;
-        case "r": 
-            alarm_handler.removeAlarm(alarm);
-            break;
-        case "t":
-            alarm_handler.addAlarm(alarm);
-            break;
-        case "y":
-            alarm_handler.getAvailablesPlaylists().then( playlists => {
-                console.log(playlists);
-            });
+    try{
+        switch(input){
+            case "a":
+                alarm_handler.play(alarm);
+                break;
+            case "z":
+                alarm_handler.snooze();
+                break;
+            case "e":
+                alarm_handler.stop();
+                break;
+            case "r": 
+                alarm_handler.removeAlarm(alarm);
+                break;
+            case "t":
+                alarm_handler.addAlarm(alarm);
+                break;
+            case "y":
+                alarm_handler.getAvailablesPlaylists().then( playlists => {
+                    console.log(playlists);
+                });
+                break;
+            case 'u':
+                console.log(alarm_handler.getAlarms());
+                break;
+        }
+    }catch(error){
+        console.log(error);
     }
+
   });
 
 
