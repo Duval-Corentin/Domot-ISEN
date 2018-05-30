@@ -3,10 +3,18 @@ const Mopidy_lib = require("mopidy");
 const JSONValidator = require('jsonschema').Validator;
 const sqlite3 = require('sqlite3');
 
+
+/**
+ * @class Manage a set of alarms and play songs with Mopidy Audio server 
+ */
 module.exports = class Alarm {
 
+    /**
+     * @description Create Alarm, get Alarm from DataBase
+     * @param {MopidyHandler} mopidy_instance an instance of MopidyHandler  
+     * @param {Boolean} verbose print details on console if activated
+     */
     constructor(mopidy_instance, verbose) {
-
         this.verbose = verbose;
 
         this.mopidy = new Mopidy_lib({
@@ -75,6 +83,10 @@ module.exports = class Alarm {
 
     }
 
+    /**
+     * @description add an Alarm to the object, schedule trigger of the alarm and return Promise with the Alarm
+     * @param {AlarmJSON} new_alarm object of the Alarm to add
+     */
     addAlarm(new_alarm) {
         if (this.verbose) console.log("Add new_alarm : ", new_alarm);
         if (!this.testAlarmJSON(new_alarm)) {
@@ -85,7 +97,7 @@ module.exports = class Alarm {
 
             for(let alarm of this.alarms.keys()){
                 if(alarm.name == new_alarm.name) throw `alarm with name '${alarm.name}' allready exist, cannot create 2 alarms with same name'`;
-                if(alarm.play_time == new_alarm.play_time) throw 'An alarm allready exist with the same play_time, cannot trigger 2 alarm at the same time';
+                if(alarm.trigger == new_alarm.trigger) throw 'An alarm allready exist with the same trigger time, cannot trigger 2 alarm at the same time';
             }
             this.mopidy.playlists.getPlaylists().then(playlists => {
                 var playlist_find = false;
@@ -120,6 +132,10 @@ module.exports = class Alarm {
         }
     }
 
+    /**
+     * @description Edit an existing playlist 
+     * @param {AlarmJSON} new_alarm Alarm to change, name proprety must be the same of one existing playlist
+     */
     editAlarm(new_alarm) {
         if (!this.testAlarmJSON(new_alarm)) {
             throw "Bad JSON Format";
@@ -137,6 +153,10 @@ module.exports = class Alarm {
         }
     }
 
+    /**
+     * @description remove an alarm 
+     * @param {AlarmJSON} new_alarm Alarm to remove, name must match an existing playlist
+     */
     removeAlarm(new_alarm) {
         for (let alarm of this.alarms.keys()) {
             if (new_alarm.name == alarm.name) {
@@ -153,6 +173,9 @@ module.exports = class Alarm {
         throw "alarm to remove didn't match any existing alarm";
     }
 
+    /**
+     * @returns return object with all stored alarms
+     */
     getAlarms(){
         var alarms = []
         for(let alarm of this.alarms.keys()){
@@ -161,6 +184,10 @@ module.exports = class Alarm {
         return alarms;
     }
 
+    /**
+     * @description launch the playlist of the alarm 
+     * @param {AlarmJSON} alarm alarm to play
+     */
     play(alarm) {
         if (!this.playing && !this.snoozed) {
             if (!this.mopidy_ready) {
@@ -176,6 +203,7 @@ module.exports = class Alarm {
                                     return this.mopidy.tracklist.setRandom(true).then(() => {
                                         return this.mopidy.playback.play().then(() => {
                                             this.playing = alarm;
+                                            if(this.verbose) console.log("playing : ", alarm);
                                             this.stop_timeout = setTimeout(() => {
                                                 this.stop();
                                             }, 1000 * alarm.play_time);
@@ -194,20 +222,34 @@ module.exports = class Alarm {
         }
     }
 
+    /**
+     * @returns array of playlist objects
+     */
     getAvailablesPlaylists() {
         if (!this.mopidy_ready) {
             throw "Mopidy is not ready";
         } else {
             return this.mopidy.playlists.getPlaylists().then(playlists => {
-                var playlists_names = [];
+                var playlists_return = [];
                 for (let playlist of playlists) {
-                    playlists_names.push(playlist.name)
+                    var my_playlist = {
+                        "name": "",
+                        "tracks": []
+                    }
+                    my_playlist.name = playlist.name;
+                    for(let track of playlist.tracks){
+                        my_playlist.tracks.push(track.name);
+                    }
+                    playlists_return.push(my_playlist);
                 }
-                return playlists_names;
+                return playlists_return;
             });
         }
     }
 
+    /**
+     * @description stop the playing alarm if it was currently playing 
+     */
     stop() {
         if (this.playing) {
             return this.mopidy.playback.stop().then(() => {
@@ -226,6 +268,9 @@ module.exports = class Alarm {
         }
     }
 
+    /**
+     * @description snooze the currently trigger alarm and play it again in snooze_time
+     */
     snooze() {
         if (this.playing) {
             this.stop().then(alarm => {
@@ -242,6 +287,10 @@ module.exports = class Alarm {
         }
     }
 
+    /**
+     * @description test the schema of the AlarmJSON
+     * @param {AlarmJSON} alarm object of the Alarm to test
+     */
     testAlarmJSON(alarm) {
         var validator = new JSONValidator();
         this.alarmJSONSchema = {
@@ -304,7 +353,7 @@ module.exports = class Alarm {
                         },
                         "hour": {
                             "type": "number",
-                            "minimum": "0",
+                            "minimum": 0,
                             "maximum": 23
                         },
                         "minute": {
@@ -329,10 +378,16 @@ module.exports = class Alarm {
         }
     }
 
+    /**
+     * @description return the JSON Schema of Alarm
+     */
     getAlarmJSONFormat() {
         return this.alarmJSONSchema;
     }
 
+    /**
+     * @param {JSON} trigger trigger propriety of the AlarmJSON
+     */
     triggerToCron(trigger) {
         var cron = "0 ";
         var day = false;

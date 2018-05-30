@@ -13,9 +13,9 @@ mopidy.generatePlaylists();
 var alarm_handler = new Alarm(mopidy, true);
 
 const alarm = {
-    "name": "my_alarm_03",
+    "name": "my_alarm_04",
     "playlist_name": "playlist_1",
-    "volume": 70,
+    "volume": 100,
     "play_time": 60,
     "snooze_time": 5,
     "unique": false,
@@ -25,13 +25,13 @@ const alarm = {
             "monday": true,
             "tuesday": true,
             "wednesday": true,
-            "thursday": false,
+            "thursday": true,
             "friday": true,
             "saturday": true,
             "sunday": true
         },
-        "hour": 10,
-        "minute": 51
+        "hour": 11,
+        "minute": 38
     }
 }
 

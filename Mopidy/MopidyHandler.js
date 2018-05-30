@@ -3,9 +3,14 @@ const EventEmitter = require("events");
 const fs = require("fs");
 const fsPromises = fs.promises;
 
-
+/**
+ * @class Handler of Mopidy instance and playlists manager
+ */
 module.exports = class MopidyHandler{
 
+    /**
+     * @description create a thread and run a mopidy instance 
+     */
     constructor(){
         this.mopidyProcess = spawn("mopidy", ["--conf", '../Mopidy/mopidy.conf']);
         this.eventEmitter = new EventEmitter();
@@ -36,22 +41,37 @@ module.exports = class MopidyHandler{
 
     }
 
+    /**
+     * @description return a Event Object with events : "mopidy-ready", "mopidy-spotify-connected", "mopidy-close"
+     */
     getEventEmitter(){
         return this.eventEmitter;
     }
 
+    /**
+     * @description return true if the event "mopidy-ready" have allready been emit
+     */
     isReady(){
         return this.mopidy_ready;
     }
 
+    /**
+     * @description return true if the event "mopidy-spotify-connected" have allready been emit
+     */
     isSpotifyConnected(){
         return this.spotify_connected;
     }
 
+    /**
+     * @description launch SIGKILL signal to mopidy thread
+     */
     close(){
         this.mopidyProcess.kill('SIGKILL');
     }
 
+    /**
+     * @description generate m3u files from playlists folder in my_playlist folder
+     */
     generatePlaylists(){
         const music_folder_path = "../Mopidy/my_playlists/";
         const m3u_folder_path = "../Mopidy/m3u_files/"
@@ -66,8 +86,5 @@ module.exports = class MopidyHandler{
                 console.log("playlist " + folder + " created");
             });
         });
-
-
     }
-
 }
