@@ -374,7 +374,7 @@ module.exports = class Alarm {
                 return false;
             }
         } catch (result) {
-            console.log(result);
+            throw "bad Alarm JSON Format : " + result;
         }
     }
 

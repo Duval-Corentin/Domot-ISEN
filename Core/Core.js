@@ -1,77 +1,39 @@
+const readline = require('readline');
+
 const Mopidy = require("../Mopidy/MopidyHandler");
 const Alarm = require("../Alarm/Alarm");
-const readline = require('readline');
+const Auth = require("../Authentification/Authentification");
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
   });
 
+const auth = new Auth(true);
 
-var mopidy = new Mopidy();
-mopidy.generatePlaylists();
-var alarm_handler = new Alarm(mopidy, true);
 
-const alarm = {
-    "name": "my_alarm_04",
-    "playlist_name": "playlist_1",
-    "volume": 100,
-    "play_time": 60,
-    "snooze_time": 5,
-    "unique": false,
-    "active": true,
-    "trigger": {
-        "days": {
-            "monday": true,
-            "tuesday": true,
-            "wednesday": true,
-            "thursday": true,
-            "friday": true,
-            "saturday": true,
-            "sunday": true
-        },
-        "hour": 11,
-        "minute": 38
-    }
-}
+const user_1 = {
+    "username": "alice08",
+    "recover_email": "alice@gmail.com",
+    "first_name": "alice",
+    "last_name": "foo",
+    "password": "vfvfd0vfDvf6dvd",
+    "is_admin": false
+};
 
-rl.on('line', (input) => {
-    console.log(`Received: ${input}`);
-
+rl.on("line", line => {
     try{
-        switch(input){
-            case "a":
-                alarm_handler.play(alarm);
+        switch (line) {
+            case "a": 
+                auth.addUser(user_1);
                 break;
             case "z":
-                alarm_handler.snooze();
+                console.log(auth.testUser("alice02", "My_d0g_is_the_best"));
                 break;
             case "e":
-                alarm_handler.stop();
-                break;
-            case "r": 
-                alarm_handler.removeAlarm(alarm);
-                break;
-            case "t":
-                alarm_handler.addAlarm(alarm);
-                break;
-            case "y":
-                alarm_handler.getAvailablesPlaylists().then( playlists => {
-                    console.log(playlists);
-                });
-                break;
-            case 'u':
-                console.log(alarm_handler.getAlarms());
-                break;
+                console.log(auth.getUsers());
         }
-    }catch(error){
-        console.log(error);
+    } catch (error){
+     console.log(error);   
     }
-
-  });
-
-
-  process.on('uncaughtException', (err) => {
-      console.log(err);
-      mopidy.close();
-  })
+});
