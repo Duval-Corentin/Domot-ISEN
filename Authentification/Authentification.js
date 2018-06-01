@@ -1,6 +1,8 @@
 const sqlite3 = require('sqlite3');
 const crypto = require('crypto');
 const JSONValidator = require('jsonschema').Validator;
+const nodemailer = require('nodemailer');
+
 
 module.exports = class Auth {
     constructor(verbose) {
@@ -16,6 +18,9 @@ module.exports = class Auth {
     
             this.users.push(row);
         });
+
+        this.recover_codes = new Map();
+        this.recover_codes_timeout = new Map();
     }
 
     addUser(new_user) {
@@ -42,7 +47,7 @@ module.exports = class Auth {
                 "last_name": new_user.last_name,
                 "salt": salt,
                 "hashed_password": hashed_password,
-                "is_admin": new_user.is_admin,
+                "is_admin": new_user.is_admin ? true : false,
                 "creation_date": `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
             });
 
@@ -58,6 +63,73 @@ module.exports = class Auth {
 
     }
 
+    send_recover_email(username){
+
+        this.transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'domotisen@gmail.com',
+                pass: 'C0c0_Is_The_Best'
+            }
+        });
+
+        for(let user of this.users){
+
+            if(username == user.username){
+                this.recover_codes.set(user.username, crypto.randomBytes(8).toString('base64').toUpperCase());
+                this.recover_codes_timeout.set(user.username, setTimeout( () => {
+                    this.recover_codes.delete(user.username);
+                }, 1000 * 60 * 30));
+
+                var mailOptions = {
+                    from: 'domotisen@gmail.com',
+                    to: user.recover_email,
+                    subject: 'Domot\'ISEN : Recover your Password ' + user.username,
+                    text: "code : " + this.recover_codes.get(user.username)
+                };
+
+                this.transporter.sendMail(mailOptions, (error, info) => {
+                    if(error) throw error;
+                    if(this.verbose) console.log("Recover Email send: " + info.response);
+
+                    return user.recover_email;
+                });
+            }
+        }
+
+        throw "username didn't match any registed user";
+    }
+
+    change_password(username, recover_code, new_password){
+        if(this.recover_codes.has(username)){
+            if(this.recover_codes.get(username) == recover_code){
+                const password_regex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z]{8,}$/;
+                if(!password_regex.test(user.password)) throw "Bad password format";
+
+                for(let user of this.users){
+                    if(user.username == username){
+                        this.removeUser(user);
+                        try { 
+                            this.addUser({
+                            "username": user.username,
+                            "recover_email": user.recover_email,
+                            "first_name": user.first_name,
+                            "last_name": user.last_name,
+                            "password": new_password,
+                            "is_admin": user.is_admin
+                            });
+                        } catch(error){
+                            throw "Change_password : " + error;
+                        }
+
+                        this.recover_codes.delete(username);
+                        clearTimeout(this.recover_codes_timeout.get(username));
+                    }
+                }
+            }
+        }
+    }
+
     testUser(username, password) {
         for (let user of this.users) {
             if (user.username == username) {
@@ -65,8 +137,8 @@ module.exports = class Auth {
                 hash.update(user.salt + password);
                 const test_password = hash.digest('base64');
 
-                console.log("test password : ", test_password);
-                console.log("stored password", user.hashed_password);
+                if(this.verbose) console.log("test password : ", test_password);
+                if(this.verbose) console.log("stored password", user.hashed_password);
 
                 if (test_password === user.hashed_password) {
                     return true;
