@@ -14,7 +14,7 @@ const auth = new Auth(true);
 
 const user_1 = {
     "username": "alice08",
-    "recover_email": "alice@gmail.com",
+    "recover_email": "corentin.duval9@gmail.com",
     "first_name": "alice",
     "last_name": "foo",
     "password": "vfvfd0vfDvf6dvd",
@@ -28,10 +28,10 @@ rl.on("line", line => {
                 auth.addUser(user_1);
                 break;
             case "z":
-                console.log(auth.testUser("alice02", "My_d0g_is_the_best"));
+                auth.send_recover_email(user_1.username);
                 break;
             case "e":
-                console.log(auth.getUsers());
+                auth.change_password(user_1.username, "FD4FRZ", "New_PassW0rd");
         }
     } catch (error){
      console.log(error);   

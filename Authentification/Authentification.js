@@ -3,8 +3,14 @@ const crypto = require('crypto');
 const JSONValidator = require('jsonschema').Validator;
 const nodemailer = require('nodemailer');
 
-
+/**
+ * @class Authentification Module to create Users and Admins members, passwords are hashed and salted
+ */
 module.exports = class Auth {
+
+    /**
+     * @param {Boolean} verbose enable or disable debug message on console
+     */
     constructor(verbose) {
         this.verbose = verbose;
 
@@ -23,6 +29,10 @@ module.exports = class Auth {
         this.recover_codes_timeout = new Map();
     }
 
+    /**
+     * @description add a new user or admin in the user database after checked email and password format 
+     * @param {UserJSON} new_user object of the new user
+     */
     addUser(new_user) {
         this.users.forEach(user => {
             if (user.username == new_user.username) {
@@ -59,48 +69,72 @@ module.exports = class Auth {
         }
     }
 
+    /**
+     * @description remove a user of the User database
+     * @param {String} username username of the account to remove
+     * @param {String} password password of the account to remove
+     */
     removeUser(username, password) {
-
+        try{
+            if(this.testUser(username, password)){
+                for(let user of this.users){
+                    if(user.username == username){
+                        this.users.splice(this.users.indexOf(user), 1);
+                    }
+                    return user;
+                }
+            }else{
+                throw "Bad Password, cannot remove user"
+            }
+        }catch(error){
+            throw "Error removeUser : " + error;
+        }
     }
 
-    send_recover_email(username){
+    sendRecoverEmail(username){
 
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'domotisen@gmail.com',
-                pass: 'C0c0_Is_The_Best'
+                user: 'domotisen01@gmail.com',
+                pass: 'D0m0tisen'
             }
         });
 
+        var user_find = false;
         for(let user of this.users){
 
             if(username == user.username){
-                this.recover_codes.set(user.username, crypto.randomBytes(8).toString('base64').toUpperCase());
+
+                user_find = true;
+
+                const recover_code = crypto.randomBytes(8).toString('base64').toUpperCase();
+                this.recover_codes.set(user.username, recover_code);
                 this.recover_codes_timeout.set(user.username, setTimeout( () => {
                     this.recover_codes.delete(user.username);
                 }, 1000 * 60 * 30));
 
+                console.log(user.recover_email);
+
                 var mailOptions = {
-                    from: 'domotisen@gmail.com',
+                    from: '"Domot\'ISEN Box" <domotisen01@gmail.com>',
                     to: user.recover_email,
-                    subject: 'Domot\'ISEN : Recover your Password ' + user.username,
+                    subject: 'Reset your Password, ' + user.username,
                     text: "code : " + this.recover_codes.get(user.username)
                 };
 
                 this.transporter.sendMail(mailOptions, (error, info) => {
                     if(error) throw error;
                     if(this.verbose) console.log("Recover Email send: " + info.response);
-
-                    return user.recover_email;
                 });
+                return user.recover_email;
             }
         }
 
-        throw "username didn't match any registed user";
+        if(!user_find) throw "username didn't match any registed user";
     }
 
-    change_password(username, recover_code, new_password){
+    changePassword(username, recover_code, new_password){
         if(this.recover_codes.has(username)){
             if(this.recover_codes.get(username) == recover_code){
                 const password_regex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z]{8,}$/;
@@ -148,6 +182,10 @@ module.exports = class Auth {
             }
         }
         throw "username didn't match any registed user"
+    }
+
+    testAdmin(username, password){
+
     }
 
     getUsers() {
