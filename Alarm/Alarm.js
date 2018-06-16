@@ -99,7 +99,7 @@ module.exports = class Alarm {
                 if(alarm.name == new_alarm.name) throw `alarm with name '${alarm.name}' allready exist, cannot create 2 alarms with same name'`;
                 if(alarm.trigger == new_alarm.trigger) throw 'An alarm allready exist with the same trigger time, cannot trigger 2 alarm at the same time';
             }
-            this.mopidy.playlists.getPlaylists().then(playlists => {
+            return this.mopidy.playlists.getPlaylists().then(playlists => {
                 var playlist_find = false;
                 for (let playlist of playlists) {
                     if (playlist.name == new_alarm.playlist_name) {
@@ -144,7 +144,7 @@ module.exports = class Alarm {
         } else {
             for (let alarm of this.alarms.keys()) {
                 if (new_alarm.name === alarm.name || new_alarm.trigger === alarm.trigger) {
-                    this.removeAlarm(alarm);
+                    this.removeAlarm(alarm.name);
                     this.addAlarm(new_alarm);
                     return new_alarm;
                 }
@@ -155,19 +155,19 @@ module.exports = class Alarm {
 
     /**
      * @description remove an alarm 
-     * @param {AlarmJSON} new_alarm Alarm to remove, name must match an existing playlist
+     * @param {String} alarm_name Alarm to remove, name must match an existing playlist
      */
-    removeAlarm(new_alarm) {
+    removeAlarm(alarm_name) {
         for (let alarm of this.alarms.keys()) {
-            if (new_alarm.name == alarm.name) {
+            if (alarm_name == alarm.name) {
                 this.alarms.get(alarm).cancel();
                 this.alarms.delete(alarm);
 
-                this.db.run(`DELETE FROM alarm WHERE name = '${new_alarm.name}'`, error => {
+                this.db.run(`DELETE FROM alarm WHERE name = '${alarm.name}'`, error => {
                     if (error) throw error;
                 });
-                if (this.verbose) console.log("Remove ", new_alarm);
-                return new_alarm;
+                if (this.verbose) console.log("Remove ", alarm);
+                return alarm;
             }
         }
         throw "alarm to remove didn't match any existing alarm";

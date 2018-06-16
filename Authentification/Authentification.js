@@ -7,7 +7,6 @@ const nodemailer = require('nodemailer');
  * @class Authentification Module to create Users and Admins members, passwords are hashed and salted
  */
 module.exports = class Auth {
-
     /**
      * @param {Boolean} verbose enable or disable debug message on console
      */
@@ -21,7 +20,7 @@ module.exports = class Auth {
         });
         this.db.each("SELECT * FROM user", (error, row) => {
             if (error) throw error;
-    
+
             this.users.push(row);
         });
 
@@ -40,7 +39,7 @@ module.exports = class Auth {
             }
         });
 
-        if (this.testUserJSON(new_user)) {
+        if (this.testNew_UserJSON(new_user)) {
             const hash = crypto.createHash('sha256');
             const salt = crypto.randomBytes(128).toString('base64');
             hash.update(salt + new_user.password);
@@ -50,7 +49,7 @@ module.exports = class Auth {
 
             var date = new Date();
 
-            this.users.push({
+            const user_json = {
                 "username": new_user.username,
                 "recover_email": new_user.recover_email,
                 "first_name": new_user.first_name,
@@ -59,11 +58,12 @@ module.exports = class Auth {
                 "hashed_password": hashed_password,
                 "is_admin": new_user.is_admin ? true : false,
                 "creation_date": `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-            });
+            }
+            this.users.push(user_json);
 
             this.db.run(`INSERT INTO user VALUES ('${new_user.username}', '${new_user.recover_email}', '${new_user.first_name ? new_user.first_name : ""}', '${new_user.last_name ? new_user.last_name : ""}', '${salt}', '${hashed_password}', ${new_user.is_admin ? 1 : 0}, date('now'))`);
 
-            return true;
+            return user_json;
         } else {
             throw "Unable to create user, bad email/password format";
         }
@@ -75,23 +75,30 @@ module.exports = class Auth {
      * @param {String} password password of the account to remove
      */
     removeUser(username, password) {
-        try{
-            if(this.testUser(username, password)){
-                for(let user of this.users){
-                    if(user.username == username){
+        if(this.users.length <= 1) throw "Cannot Remove the last user of the system";
+        try {
+            if (this.testUser(username, password)) {
+                for (let user of this.users) {
+                    if (user.username == username) {
+                        this.db.run(`DELETE FROM user WHERE username = '${username}'`);
                         this.users.splice(this.users.indexOf(user), 1);
+                        return user;
                     }
-                    return user;
                 }
-            }else{
+            } else {
                 throw "Bad Password, cannot remove user"
             }
-        }catch(error){
+        } catch (error) {
             throw "Error removeUser : " + error;
         }
     }
 
-    sendRecoverEmail(username){
+    /**
+     * @description send a recover Email to the recover_email of the user, need to be connected to internet, otherwise it will throw a email exception
+     * @param {String} querry   
+     * @return {String} email where the code has been send 
+     */
+    sendRecoverEmail(querry) {
 
         this.transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -102,19 +109,19 @@ module.exports = class Auth {
         });
 
         var user_find = false;
-        for(let user of this.users){
+        for (let user of this.users) {
 
-            if(username == user.username){
-
+            if (querry == user.username || querry == user.recover_email) {
+                require('dns').lookup('google.com', error => {
+                    if(error && error.code == "ENOTFOUND") throw "No internet connection, cannot send mail"
+                })
                 user_find = true;
 
                 const recover_code = crypto.randomBytes(8).toString('base64').toUpperCase();
                 this.recover_codes.set(user.username, recover_code);
-                this.recover_codes_timeout.set(user.username, setTimeout( () => {
+                this.recover_codes_timeout.set(user.username, setTimeout(() => {
                     this.recover_codes.delete(user.username);
                 }, 1000 * 60 * 30));
-
-                console.log(user.recover_email);
 
                 var mailOptions = {
                     from: '"Domot\'ISEN Box" <domotisen01@gmail.com>',
@@ -124,46 +131,52 @@ module.exports = class Auth {
                 };
 
                 this.transporter.sendMail(mailOptions, (error, info) => {
-                    if(error) throw error;
-                    if(this.verbose) console.log("Recover Email send: " + info.response);
+                    if (error) throw error;
+                    if (this.verbose) console.log("Recover Email send: " + info.response);
                 });
                 return user.recover_email;
             }
         }
 
-        if(!user_find) throw "username didn't match any registed user";
+        if (!user_find) throw String(`${querry} didn't match any registed user`);
     }
 
-    changePassword(username, recover_code, new_password){
-        if(this.recover_codes.has(username)){
-            if(this.recover_codes.get(username) == recover_code){
-                const password_regex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z]{8,}$/;
-                if(!password_regex.test(user.password)) throw "Bad password format";
+    /**
+     * @description change the password of a user 
+     * @param {String} username name of the user 
+     * @param {String} recover_code code send in the email with the function sendRecoverEmail
+     * @param {String} new_password new password for the user, must be at least 8 characters long with capitals letters and digits
+     * @return {String} new hashed_password 
+     */
+    changePassword(username, recover_code, new_password) {
+        if (this.recover_codes.has(username) && this.recover_codes.get(username) == recover_code) {
+            const password_regex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z]{8,}$/;
+            if (!password_regex.test(new_password)) throw "Bad password format";
 
-                for(let user of this.users){
-                    if(user.username == username){
-                        this.removeUser(user);
-                        try { 
-                            this.addUser({
-                            "username": user.username,
-                            "recover_email": user.recover_email,
-                            "first_name": user.first_name,
-                            "last_name": user.last_name,
-                            "password": new_password,
-                            "is_admin": user.is_admin
-                            });
-                        } catch(error){
-                            throw "Change_password : " + error;
-                        }
+            const hash = crypto.createHash('sha256');
+            const salt = crypto.randomBytes(128).toString('base64');
+            hash.update(salt + new_password);
+            const hashed_password = hash.digest('base64');
 
-                        this.recover_codes.delete(username);
-                        clearTimeout(this.recover_codes_timeout.get(username));
-                    }
+            for (let user of this.users) {
+                if (user.username == username) {
+                    this.db.run(`UPDATE user SET hashed_password = '${hashed_password}', salt = '${salt}' WHERE username = '${username}'`);
+                    this.recover_codes.delete(username);
+                    clearTimeout(this.recover_codes_timeout.get(username));
+                    return hashed_password;
                 }
             }
+        }else{
+            throw "Bad recover code";
         }
     }
 
+    /**
+     * @description test if this username/paswword match an existing user throw exception if username didn't exist 
+     * @param {String} username 
+     * @param {String} password
+     * @return {Boolean} true if the username/password is correct, false otherwise 
+     */
     testUser(username, password) {
         for (let user of this.users) {
             if (user.username == username) {
@@ -171,8 +184,8 @@ module.exports = class Auth {
                 hash.update(user.salt + password);
                 const test_password = hash.digest('base64');
 
-                if(this.verbose) console.log("test password : ", test_password);
-                if(this.verbose) console.log("stored password", user.hashed_password);
+                if (this.verbose) console.log("test password : ", test_password);
+                if (this.verbose) console.log("stored password", user.hashed_password);
 
                 if (test_password === user.hashed_password) {
                     return true;
@@ -184,18 +197,52 @@ module.exports = class Auth {
         throw "username didn't match any registed user"
     }
 
-    testAdmin(username, password){
+    /**
+     * @description test if this username/paswword match an existing admin throw exceptions if username didn't exist or if the user isn't an admin
+     * @param {String} username 
+     * @param {String} password
+     * @return {Boolean} true if the username/password is correct, false otherwise 
+     */
+    testAdmin(username, password) {
+        for (let user of this.users) {
+            if (user.username == username) {
+                const hash = crypto.createHash('sha256');
+                hash.update(user.salt + password);
+                const test_password = hash.digest('base64');
 
+                if (this.verbose) console.log("test password : ", test_password);
+                if (this.verbose) console.log("stored password", user.hashed_password);
+
+                if (!user.is_admin) throw `${user.username} is not an Admin`;
+
+
+                if (test_password === user.hashed_password) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
+        throw "username didn't match any registed user"
     }
 
+    /**
+     * @description return the list of all users and admins
+     * @return {Array} users 
+     */
     getUsers() {
         return this.users;
     }
 
-    testUserJSON(user) {
+    /**
+     * @description test the format of a new_user JSON
+     * @param {JSON} new_user Json of the new_user
+     * @return {Boolean} true if the JSON is correct, false otherwise 
+     */
+    testNew_UserJSON(new_user) {
         var validator = new JSONValidator();
 
-        this.userJSONSchema = {
+        const new_userJSONSchema = {
             "type": "object",
             "required": ["username", "recover_email", "password"],
             "propreties": {
@@ -221,19 +268,21 @@ module.exports = class Auth {
         }
 
         const email_regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-        if(!email_regex.test(user.recover_email)) throw "Bad email format";
+        if (!email_regex.test(new_user.recover_email)) throw "Bad email format";
 
         const password_regex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z]{8,}$/;
-        if(!password_regex.test(user.password)) throw "Bad password format";
-        
+        if (!password_regex.test(new_user.password)) throw "Bad password format";
+
         try {
-            if (validator.validate(user, this.userJSONSchema).errors.length == 0) {
+            if (validator.validate(new_user, new_userJSONSchema).errors.length == 0) {
                 return true;
             } else {
                 return false;
             }
         } catch (result) {
-            throw "bad User JSON Format : " + result;
+            throw String("bad User JSON Format : " + result);
         }
     }
+
+    
 }
