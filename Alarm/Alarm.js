@@ -2,20 +2,27 @@ const Schedule = require("node-schedule");
 const Mopidy_lib = require("mopidy");
 const JSONValidator = require('jsonschema').Validator;
 const sqlite3 = require('sqlite3');
-
+const Mqtt = require("mqtt");
 
 /**
  * @class Manage a set of alarms and play songs with Mopidy Audio server 
  */
 module.exports = class Alarm {
-
+    
     /**
      * @description Create Alarm, get Alarm from DataBase
      * @param {MopidyHandler} mopidy_instance an instance of MopidyHandler  
      * @param {Boolean} verbose print details on console if activated
      */
-    constructor(mopidy_instance, verbose) {
+    constructor(mopidy_instance, mosquitto_instance, verbose) {
         this.verbose = verbose;
+
+        try{
+            this.mqtt_client = Mqtt.connect({hostname : "127.0.0.1", port : 3501, username : "alarm", password : "Alarm01"});
+        }catch(error){
+            console.log(error);
+        }
+        if(this.verbose) this.mqtt_client.on("connect", () => console.log("connected"));
 
         this.mopidy = new Mopidy_lib({
             webSocketUrl: "ws://localhost:6680/mopidy/ws/",
@@ -115,7 +122,7 @@ module.exports = class Alarm {
                         cron_task = Schedule.scheduleJob(this.triggerToCron(new_alarm.trigger), () => {
                             this.play(new_alarm);
                             if (new_alarm.unique) {
-                                this.removeAlarm(new_alarm);
+                                this.removeAlarm(new_alarm.name);
                             }
                         });
 
@@ -193,33 +200,41 @@ module.exports = class Alarm {
             if (!this.mopidy_ready) {
                 throw "Mopidy is not ready";
             } else {
-                this.mopidy.playlists.getPlaylists().then(playlists => {
+                return this.mopidy.playlists.getPlaylists().then(playlists => {
                     var playlist_find = false;
                     for (let playlist of playlists) {
                         if (playlist.name === alarm.playlist_name) {
                             playlist_find = true;
-                            this.mopidy.playback.setVolume(alarm.volume).then(() => {
+                            return this.mopidy.playback.setVolume(alarm.volume).then(() => {
                                 return this.mopidy.tracklist.add(playlist.tracks).then(() => {
-                                    return this.mopidy.tracklist.setRandom(true).then(() => {
+                                    return this.mopidy.tracklist.shuffle().then(() => {
                                         return this.mopidy.playback.play().then(() => {
                                             this.playing = alarm;
                                             if(this.verbose) console.log("playing : ", alarm);
                                             this.stop_timeout = setTimeout(() => {
                                                 this.stop();
                                             }, 1000 * alarm.play_time);
+
+                                            console.log(JSON.stringify(alarm));
+                                            try{
+                                                this.mqtt_client.publish("/alarms/trigger", JSON.stringify(alarm));
+                                            }catch(error){
+                                                console.log(error);
+                                            }
+                                            return Promise.resolve(alarm);
                                         });
                                     });
                                 });
                             });
-                            break;
                         }
                     }
                     if (!playlist_find) {
                         throw "Playlist to play not find"
                     }
-                }).catch(console.error.bind(console)).done();
+                }).catch(console.error.bind(console));
             }
         }
+        throw "an other alarm is allready playing, cannot trigger 2 alarms at the same time";
     }
 
     /**
@@ -261,6 +276,7 @@ module.exports = class Alarm {
             clearTimeout(this.play_timeout);
             const old_playing = this.snoozed;
             this.snoozed = undefined;
+            this.mqtt_client.publish("/alarms/stop", JSON.stringify(old_playing));
             return Promise.resolve(old_playing);
 
         } else {
@@ -273,7 +289,7 @@ module.exports = class Alarm {
      */
     snooze() {
         if (this.playing) {
-            this.stop().then(alarm => {
+            return this.stop().then(alarm => {
                 this.snoozed = alarm;
                 this.playing = undefined;
 
@@ -282,9 +298,11 @@ module.exports = class Alarm {
                     this.snoozed = undefined;
                     this.play(alarm);
                 }, 1000 * alarm.snooze_time);
-
+                this.mqtt_client.publish("/alarms/snooze", JSON.stringify(this.snooze));
+                return Promise.resolve(this.snooze);
             });
         }
+        return Promise.resolve(false);
     }
 
     /**
@@ -427,5 +445,17 @@ module.exports = class Alarm {
             cron = cron.substring(0, cron.length - 1);
         }
         return cron;
+    }
+
+    getCurrentTrack(){
+        return this.mopidy.playback.getCurrentTrack().then(track => {
+            return track.name;
+        }); 
+    }
+
+    getVolume(){
+        return this.mopidy.playback.getVolume().then(volume => {
+            return volume;
+        });
     }
 }

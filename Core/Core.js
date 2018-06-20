@@ -6,38 +6,26 @@ const bodyParser = require('body-parser');
 
 const Auth_class = require('../Authentification/Authentification');
 const alarm_router = require('../Alarm/Alarm-router');
+const Mosquitto_class = require('../MQTT/Mosquitto_server');
+
+const Auth = new Auth_class(true);
+const Mosquitto = new Mosquitto_class(true);
 
 // ------ EXPRESS MIDDLEWARES ------
 
 // parse request to JSON
 app.use(bodyParser.json());
 
-// check if the request is made by an Auth User
-var Auth = new Auth_class(false);
-
 /**
  * @apiDefine Request
  * @apiParam {Object} request object with parameters of the request
  */
-
 /**
  * @apiDefine Auth
  * @apiParam {Object} auth Auth object of the user who make the request
  * @apiParam {String} auth.username name of the user
  * @apiParam {String} auth.password password of the user
  */
-
- /**
-  * {
-  *     "auth" : {
-  *         "username" : "Alice01",
-  *         "password" : "Bob123456"
-  *     },
-  *     "request" : {
-  *         
-  *     }
-  * }
-  */
 const check_user = (req, res, next) => {
     try {
         if (!req.body.auth.username || !req.body.auth.password) {
@@ -81,9 +69,7 @@ https.createServer({
     });
 
 // ------ AUTH MODULE ------
-
-/**
- * -- test user -- 
+/** -- test user --
  * @api {put} /users TestUser
  * @apiName TestUser
  * @apiGroup User
@@ -119,8 +105,7 @@ app.put("/api/users", (req, res) => {
     }
 })
 
-/**
- * -- get user(s) -- 
+/** -- get user(s) -- 
  * @api {get} /users GetUser(S)
  * @apiName GetUser(S)
  * @apiGroup User
@@ -174,8 +159,7 @@ app.get("/api/users", check_user, (req, res) => {
     }
 });
 
-/**
- * -- add User --
+/** -- add User --
  * @api {post} /users AddUser
  * @apiName AddUser
  * @apiGroup User
@@ -210,7 +194,6 @@ app.get("/api/users", check_user, (req, res) => {
  *     }
  * }
  * 
- * 
  * @apiSuccessExample {json} Success-Example:
  * {
  *      "username" : "Bob123456",
@@ -221,8 +204,6 @@ app.get("/api/users", check_user, (req, res) => {
  *      "hashed_password" : "cdsqcdqscdsqcdqsvdsq",
  *      "is_admin" : false
  * }
- * 
- * 
  */
 app.post("/api/users", check_user, (req, res) => {
     const request = req.body.request;
@@ -234,8 +215,7 @@ app.post("/api/users", check_user, (req, res) => {
     }
 });
 
-/**
- * -- send recover password email --
+/** -- send recover password email --
  * @api {post} /users/recover_email SendRecoverEmail
  * @apiName SendRecoverEmail
  * @apiGroup User
@@ -275,8 +255,7 @@ app.post("/api/users/recover_email", (req, res) => {
     }
 });
 
-/**
- * -- change password -- 
+/** -- change password -- 
  * @api {put} /users/change_password ChangePassword
  * @apiName ChangePassword
  * @apiGroup User
@@ -310,8 +289,7 @@ app.put("/api/users/change_password", (req, res) => {
     }
 });
 
-/**
- * -- delete user --
+/** -- delete user --
  * @api {delete} /users DeleteUser
  * @apiName DeleteUser
  * @apiGroup User

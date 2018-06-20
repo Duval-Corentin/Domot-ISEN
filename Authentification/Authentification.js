@@ -2,6 +2,7 @@ const sqlite3 = require('sqlite3');
 const crypto = require('crypto');
 const JSONValidator = require('jsonschema').Validator;
 const nodemailer = require('nodemailer');
+const { spawn } = require('child_process');
 
 /**
  * @class Authentification Module to create Users and Admins members, passwords are hashed and salted
@@ -63,6 +64,8 @@ module.exports = class Auth {
 
             this.db.run(`INSERT INTO user VALUES ('${new_user.username}', '${new_user.recover_email}', '${new_user.first_name ? new_user.first_name : ""}', '${new_user.last_name ? new_user.last_name : ""}', '${salt}', '${hashed_password}', ${new_user.is_admin ? 1 : 0}, date('now'))`);
 
+            if(new_user.is_admin) spawn("mosquitto_passwd", ["-b", "../MQTT/mosquitto_password", new_user.username, new_user.password]);
+
             return user_json;
         } else {
             throw "Unable to create user, bad email/password format";
@@ -82,6 +85,9 @@ module.exports = class Auth {
                     if (user.username == username) {
                         this.db.run(`DELETE FROM user WHERE username = '${username}'`);
                         this.users.splice(this.users.indexOf(user), 1);
+
+                        spawn("mosquitto_passwd", ["-D", "../MQTT/mosquitto_password", username]);
+
                         return user;
                     }
                 }
@@ -283,6 +289,4 @@ module.exports = class Auth {
             throw String("bad User JSON Format : " + result);
         }
     }
-
-    
 }

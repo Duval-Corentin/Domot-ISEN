@@ -7,12 +7,25 @@ var Mopidy = new Mopidy_class();
 var Alarm = new Alarm_class(Mopidy, false);
 
 /**
+ * ------ AVAILAIBLES ACTIONS ------
+ * - Add Alarm
+ * - Get Alarm(S)
+ * - Delete Alarm
+ * - Update Alarm
+ * - Get Playlists
+ * - playback : play
+ * - playback : snooze
+ * - playback : stop 
+ * - Mopidy : Get Played Song TO DO 
+ * - Mopidy : Get Volume TO DO
+ */
+
+/**
  * 
  * @api {post} /alarms AddAlarm
  * @apiName AddAlarm
  * @apiGroup Alarm
  * @apiVersion  0.0.2
- * 
  * 
  * @apiUse Auth
  * @apiUse Request 
@@ -93,8 +106,6 @@ var Alarm = new Alarm_class(Mopidy, false);
 		"minute": 15
 	}
 }
- * 
- * 
  */
 auth_router.post('/', (req, res) => {
 	const request = req.body.request;
@@ -196,17 +207,165 @@ auth_router.get('/', (req, res) => {
 	}
 });
 
-
+/**
+ * 
+ * @api {delete} /alarms DeleteAlarm
+ * @apiName DeleteAlarm
+ * @apiGroup Alarm
+ * @apiVersion  0.0.2
+ * 
+ * 
+ * @apiUse Auth
+ * @apiUse Request
+ * @apiParam {String} request.alarm_name name of the alarm to remove
+ * 
+ * @apiSuccess (200) {Object} AlarmJSON object of the removed alarm 
+ * 
+ * @apiParamExample  {json} Request-Example:
+ * {
+ *     "auth" : {
+ * 			"username" : "Alice",
+ * 			"password" : "Bob123456"	
+ * 		},
+ * 		"request" : {
+ * 			"alarm_name" : "my_alarm_01"
+ * 		}
+ * }
+ * 
+ * 
+ * @apiSuccessExample {json} Success-Example:
+{
+	"name": "alarm_test 2",
+	"playlist_name": "playlist_1",
+	"volume": 10,
+	"play_time": 10,
+	"snooze_time": 205555555,
+	"unique": true,
+	"active": true,
+	"trigger": {
+		"days": {
+			"monday": true,
+			"tuesday": true,
+			"wednesday": true,
+			"thursday": false,
+			"friday": false,
+			"saturday": false,
+			"sunday": false
+		},
+		"hour": 12,
+		"minute": 15
+	}
+}
+ */
 auth_router.delete('/', (req, res) => {
 	const request = req.body.request;
 
-	try{
+	try {
 		const alarmJSON = Alarm.removeAlarm(request.alarm_name);
 		res.send(alarmJSON);
-	}catch(error){
+	} catch (error) {
 		res.status(400).send(String(error));
 	}
 });
+
+/**
+ * -- Update alarm -- 
+ * @api {put} /alarms UpdateAlarm
+ * @apiName UpdateAlarm
+ * @apiGroup Alarm
+ * @apiVersion  0.0.2
+ * 
+ * @apiUse Auth
+ * @apiUse Request 
+ * @apiParam {String} request.name name of the new alarm
+ * @apiParam {String} request.playlist_name name of the playlist to play on trigger
+ * @apiParam {Number} request.volume volume of the trigger music
+ * @apiParam {Number} request.play_time time to play the playlist at maximum (in seconds)
+ * @apiParam {Number} request.snooze_time time to wait between 2 play after a snooze event (in seconds)
+ * @apiParam {Boolean} request.active if the alarm is active
+ * @apiParam {Boolean} request.unique if true the alarm will play 1 and be forget by the Module
+ * @apiParam {Object} request.trigger trigger Object
+ * @apiParam {Object} request.trigger.days on wich day the alarm must be triggered 
+ * @apiParam {Boolean} request.trigger.days.monday
+ * @apiParam {Boolean} request.trigger.days.tuesday
+ * @apiParam {Boolean} request.trigger.days.wednesday
+ * @apiParam {Boolean} request.trigger.days.thursday
+ * @apiParam {Boolean} request.trigger.days.friday
+ * @apiParam {Boolean} request.trigger.days.saturday
+ * @apiParam {Boolean} request.trigger.days.sunday
+ * @apiParam {Number} request.trigger.hour on wich hour the alarm must be triggered
+ * @apiParam {Number} request.trigger.minute  on wich minute the alarm must be triggered
+ * 
+ * @apiSuccess (200) {Object} AlarmObject new stored object of the alarm
+ * 
+ * @apiError (400) {string} AlarmError errors from the Alarm module 
+ * 
+ * @apiParamExample  {json} Request-Example:
+{
+	"auth" : {
+		"username" : "admin",
+		"password" : "Admin123456"
+	},
+	"request" : {
+		"name": "alarm_test 2",
+		"playlist_name": "playlist_1",
+		"volume": 100,
+		"play_time": 100,
+		"snooze_time": 200,
+		"unique": true,
+		"active": true,
+		"trigger": {
+			"days": {
+				"monday": true,
+				"tuesday": true,
+				"wednesday": true,
+				"thursday": false,
+				"friday": false,
+				"saturday": false,
+				"sunday": false
+			},
+			"hour": 12,
+			"minute": 15
+		}
+	}
+}
+ * 
+ * 
+ * @apiSuccessExample {json} Success-Example:
+{
+	"name": "alarm_test 2",
+	"playlist_name": "playlist_1",
+	"volume": 100,
+	"play_time": 100,
+	"snooze_time": 200,
+	"unique": true,
+	"active": true,
+	"trigger": {
+		"days": {
+			"monday": true,
+			"tuesday": true,
+			"wednesday": true,
+			"thursday": false,
+			"friday": false,
+			"saturday": false,
+			"sunday": false
+		},
+		"hour": 12,
+		"minute": 15
+	}
+}
+ */
+auth_router.put('/', (req, res) => {
+	const request = req.body.request;
+
+	try {
+		const alarm = Alarm.editAlarm(request);
+		res.send(alarm);
+	} catch (error) {
+		res.status(400).send(String(error));
+	}
+})
+
 
 /**
  * -- get playlists --
@@ -254,6 +413,186 @@ router.get("/playlists/", (req, res) => {
 	Alarm.getAvailablesPlaylists().then(playlists => {
 		res.send(playlists);
 	})
+});
+
+/**
+ * @api {patch} /alarms/playback Play
+ * @apiName PlayPlayback
+ * @apiGroup Alarm.Playback
+ * @apiVersion  0.0.2
+ * 
+ * @apiUse Auth
+ * @apiUse Request
+ * @apiParam {Object} request.alarm Alarm Object to play, not all field are mandatory
+ * @apiParam {String} request.state Must be at "play" value to play the alarm
+ * @apiParam {String} request.alarm.playlist_name name of the playlist to play
+ * @apiParam {Number} request.alarm.play_time time to play the playlist
+ * @apiParam {Number} request.alarm.snooze_time time to snooze the alarm
+ * @apiParam {Number} request.alarm.volume 
+ * 
+ * @apiSuccess (200) {Object} AlarmJSON Object of the played alarm as it was send 
+ * 
+ * @apiParamExample  {json} Request-Example:
+ * {
+ *     "auth" : {
+ * 			"username" : "Alice08",
+ * 			"password" : "Bob123456"
+ * 		},
+ * 		"request" : {
+ * 			"state" : "play",
+ * 			"alarm" : {
+ * 				"playlist_name" : "my_playlist_01",
+ * 				"play_time" : 300,
+ * 				"snooze_time" : 100,
+ * 				"volume" : 80
+ * 			}
+ * 		}
+ * }
+ * @apiSuccessExample {json} Success-Example:
+{
+ * 				"playlist_name" : "my_playlist_01",
+ * 				"play_time" : 300,
+ * 				"snooze_time" : 100,
+ * 				"volume" : 80
+}
+ */
+
+/**
+  * @api {patch} /alarms/playback Snooze
+  * @apiName Snooze
+  * @apiGroup Alarm.Playback
+  * @apiVersion  0.0.2
+  * 
+  * @apiUse Request
+  * @apiParam {String} request.state must be at "snooze"
+  * 
+  * @apiSuccess (200) {json} SnoozedAlarm Alarm Object of the previously playing alarm or false if not alarm was playing 
+  * 
+  * @apiParamExample {json} Request-Example:
+  * {
+  *     "request" : {
+  * 		"state" : "snooze"
+  * 	}
+  * }
+  * 
+  * @apiSuccessExample {json} Success-Example:
+{
+ * 				"playlist_name" : "my_playlist_01",
+ * 				"play_time" : 300,
+ * 				"snooze_time" : 100,
+ * 				"volume" : 80
+}
+*/
+
+/**
+  * @api {patch} /alarms/playback Stop
+  * @apiName Stop
+  * @apiGroup Alarm.Playback
+  * @apiVersion  0.0.2
+  * 
+  * @apiUse Request
+  * @apiParam {String} request.state must be at "stop"
+  * 
+  * @apiSuccess (200) {json} StopedAlarm Alarm Object of the previously playing alarm or false if not alarm was playing 
+  * 
+  * @apiParamExample {json} Request-Example:
+  * {
+  *     "request" : {
+  * 		"state" : "stop"
+  * 	}
+  * }
+  * 
+  * @apiSuccessExample {json} Success-Example:
+{
+ * 				"playlist_name" : "my_playlist_01",
+ * 				"play_time" : 300,
+ * 				"snooze_time" : 100,
+ * 				"volume" : 80
+}
+*/
+router.patch('/playback/', (req, res) => {
+	const request = req.body.request;
+
+	if (!request || !request.state) {
+		res.status(400).send("Missing Argument \"state\"");
+	}
+	switch (request.state) {
+		case "play":
+			if (!request.alarm) res.status(400).send("Need \"Alarm\" parameter to play");
+
+			try {
+				Alarm.play(request.alarm).then(alarm => {
+					res.send(alarm);
+				}).catch();
+			} catch (error) {
+				res.status(400).send(String(error));
+			}
+			break;
+
+		case "stop":
+			try {
+				Alarm.stop().then(old_playing => {
+					if (!old_playing) res.send("Alarm was not playing");
+					res.send(old_playing);
+				}).catch();
+			} catch (error) {
+				res.status(400).send(error);
+			}
+			break;
+
+		case "snooze":
+			try {
+				Alarm.snooze().then(old_playing => {
+					if (!old_playing) res.send("Alarm was not playing");
+					res.send(old_playing);
+				}).catch();
+			} catch (error) {
+				res.status(400).send(error);
+			}
+			break;
+
+		default:
+			res.status(400).send("Bad \"state\" value (accepted values : \'play\', \'pause\', \'snooze\')")
+	}
+});
+
+/**
+ * 
+ * @api {get} /alarms/playback/current_track GetPlayingTrack
+ * @apiName GetPlayingTrack		
+ * @apiGroup Alarm.Playback
+ * @apiVersion  0.0.2
+ * 
+ * 
+ * 
+ * @apiSuccess (200) {json} TrackName name of the playing song or false if no songs is playing 
+ * @apiSuccessExample {String} Success-Response:
+ * Stacey_Kent_-_Que_reste-t-il_de_nos_amours 
+ */
+router.get("/playback/current_track/", (req, res) => {
+	Alarm.getCurrentTrack().then(track => {
+		res.send(track);
+	})
+});
+
+/**
+ * 
+ * @api {get} /alarms/playback/volume GetVolume
+ * @apiName GetVolume
+ * @apiGroup Alarm.Playback
+ * @apiVersion  0.0.2
+ * 
+ * 
+ * 
+ * @apiSuccess (200) {Number} Volume volume of the audio server in percentage
+ * 
+ * @apiSuccessExample {Number} Success-Response:
+ * 85
+ */
+router.get("/playback/volume/", (req, res) => {
+	Alarm.getVolume().then(volume => {
+		res.send(volume);
+	});
 });
 
 module.exports = {
