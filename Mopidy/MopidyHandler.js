@@ -1,7 +1,6 @@
 const { spawn } = require('child_process');
 const EventEmitter = require("events");
 const fs = require("fs");
-const fsPromises = fs.promises;
 
 /**
  * @class Handler of Mopidy instance and playlists manager
@@ -28,6 +27,13 @@ module.exports = class MopidyHandler{
                 console.log("Mopidy is ready");
                 this.mopidy_ready = true;
             }
+
+            if(this.stderr.includes("Frontend (HttpFrontend) initialization error: HTTP server startup failed: [Errno 98] Address already in use") && !this.mopidy_ready){
+                this.eventEmitter.emit("mopidy-error");
+                console.log("Mopidy cannot connect");
+                this.mopidy_ready = false;
+            }
+
             if(this.stderr.includes("Logged in to Spotify in online mode") && !this.spotify_connected){
                 this.eventEmitter.emit("mopidy-spotify-connected");
                 console.log("Mopidy is connected to spotify");

@@ -2,20 +2,27 @@ const Schedule = require("node-schedule");
 const Mopidy_lib = require("mopidy");
 const JSONValidator = require('jsonschema').Validator;
 const sqlite3 = require('sqlite3');
-
+const Mqtt = require("mqtt");
 
 /**
  * @class Manage a set of alarms and play songs with Mopidy Audio server 
  */
 module.exports = class Alarm {
-
+    
     /**
      * @description Create Alarm, get Alarm from DataBase
      * @param {MopidyHandler} mopidy_instance an instance of MopidyHandler  
      * @param {Boolean} verbose print details on console if activated
      */
-    constructor(mopidy_instance, verbose) {
+    constructor(mopidy_instance, mosquitto_instance, verbose) {
         this.verbose = verbose;
+
+        try{
+            this.mqtt_client = Mqtt.connect({hostname : "127.0.0.1", port : 3501, username : "alarm", password : "Alarm01"});
+        }catch(error){
+            console.log(error);
+        }
+        if(this.verbose) this.mqtt_client.on("connect", () => console.log("connected"));
 
         this.mopidy = new Mopidy_lib({
             webSocketUrl: "ws://localhost:6680/mopidy/ws/",
@@ -97,9 +104,9 @@ module.exports = class Alarm {
 
             for(let alarm of this.alarms.keys()){
                 if(alarm.name == new_alarm.name) throw `alarm with name '${alarm.name}' allready exist, cannot create 2 alarms with same name'`;
-                if(alarm.trigger == new_alarm.trigger) throw 'An alarm allready exist with the same trigger time, cannot trigger 2 alarm at the same time';
+                if(alarm.trigger == new_alarm.trigger) throw 'alarm allready exist with the same trigger time, cannot trigger 2 alarm at the same time';
             }
-            this.mopidy.playlists.getPlaylists().then(playlists => {
+            return this.mopidy.playlists.getPlaylists().then(playlists => {
                 var playlist_find = false;
                 for (let playlist of playlists) {
                     if (playlist.name == new_alarm.playlist_name) {
@@ -115,7 +122,7 @@ module.exports = class Alarm {
                         cron_task = Schedule.scheduleJob(this.triggerToCron(new_alarm.trigger), () => {
                             this.play(new_alarm);
                             if (new_alarm.unique) {
-                                this.removeAlarm(new_alarm);
+                                this.removeAlarm(new_alarm.name);
                             }
                         });
 
@@ -144,7 +151,7 @@ module.exports = class Alarm {
         } else {
             for (let alarm of this.alarms.keys()) {
                 if (new_alarm.name === alarm.name || new_alarm.trigger === alarm.trigger) {
-                    this.removeAlarm(alarm);
+                    this.removeAlarm(alarm.name);
                     this.addAlarm(new_alarm);
                     return new_alarm;
                 }
@@ -155,19 +162,19 @@ module.exports = class Alarm {
 
     /**
      * @description remove an alarm 
-     * @param {AlarmJSON} new_alarm Alarm to remove, name must match an existing playlist
+     * @param {String} alarm_name Alarm to remove, name must match an existing playlist
      */
-    removeAlarm(new_alarm) {
+    removeAlarm(alarm_name) {
         for (let alarm of this.alarms.keys()) {
-            if (new_alarm.name == alarm.name) {
+            if (alarm_name == alarm.name) {
                 this.alarms.get(alarm).cancel();
                 this.alarms.delete(alarm);
 
-                this.db.run(`DELETE FROM alarm WHERE name = '${new_alarm.name}'`, error => {
+                this.db.run(`DELETE FROM alarm WHERE name = '${alarm.name}'`, error => {
                     if (error) throw error;
                 });
-                if (this.verbose) console.log("Remove ", new_alarm);
-                return new_alarm;
+                if (this.verbose) console.log("Remove ", alarm);
+                return alarm;
             }
         }
         throw "alarm to remove didn't match any existing alarm";
@@ -193,33 +200,41 @@ module.exports = class Alarm {
             if (!this.mopidy_ready) {
                 throw "Mopidy is not ready";
             } else {
-                this.mopidy.playlists.getPlaylists().then(playlists => {
+                return this.mopidy.playlists.getPlaylists().then(playlists => {
                     var playlist_find = false;
                     for (let playlist of playlists) {
                         if (playlist.name === alarm.playlist_name) {
                             playlist_find = true;
-                            this.mopidy.playback.setVolume(alarm.volume).then(() => {
+                            return this.mopidy.playback.setVolume(alarm.volume).then(() => {
                                 return this.mopidy.tracklist.add(playlist.tracks).then(() => {
-                                    return this.mopidy.tracklist.setRandom(true).then(() => {
+                                    return this.mopidy.tracklist.shuffle().then(() => {
                                         return this.mopidy.playback.play().then(() => {
                                             this.playing = alarm;
                                             if(this.verbose) console.log("playing : ", alarm);
                                             this.stop_timeout = setTimeout(() => {
                                                 this.stop();
                                             }, 1000 * alarm.play_time);
+
+                                            console.log(JSON.stringify(alarm));
+                                            try{
+                                                this.mqtt_client.publish("/alarms/trigger", JSON.stringify(alarm));
+                                            }catch(error){
+                                                console.log(error);
+                                            }
+                                            return Promise.resolve(alarm);
                                         });
                                     });
                                 });
                             });
-                            break;
                         }
                     }
                     if (!playlist_find) {
                         throw "Playlist to play not find"
                     }
-                }).catch(console.error.bind(console)).done();
+                }).catch(console.error.bind(console));
             }
         }
+        throw "an other alarm is allready playing, cannot trigger 2 alarms at the same time";
     }
 
     /**
@@ -255,12 +270,14 @@ module.exports = class Alarm {
             return this.mopidy.playback.stop().then(() => {
                 const old_playing = this.playing;
                 this.playing = undefined;
+                this.mqtt_client.publish("/alarms/stop", JSON.stringify(old_playing));
                 return old_playing;
             });
         } else if (this.snoozed) {
             clearTimeout(this.play_timeout);
             const old_playing = this.snoozed;
             this.snoozed = undefined;
+            this.mqtt_client.publish("/alarms/stop", JSON.stringify(old_playing));
             return Promise.resolve(old_playing);
 
         } else {
@@ -273,7 +290,7 @@ module.exports = class Alarm {
      */
     snooze() {
         if (this.playing) {
-            this.stop().then(alarm => {
+            return this.stop().then(alarm => {
                 this.snoozed = alarm;
                 this.playing = undefined;
 
@@ -282,9 +299,11 @@ module.exports = class Alarm {
                     this.snoozed = undefined;
                     this.play(alarm);
                 }, 1000 * alarm.snooze_time);
-
+                this.mqtt_client.publish("/alarms/snooze", JSON.stringify(this.snooze));
+                return Promise.resolve(this.snooze);
             });
         }
+        return Promise.resolve(false);
     }
 
     /**
@@ -374,7 +393,7 @@ module.exports = class Alarm {
                 return false;
             }
         } catch (result) {
-            console.log(result);
+            throw "bad Alarm JSON Format : " + result;
         }
     }
 
@@ -427,5 +446,17 @@ module.exports = class Alarm {
             cron = cron.substring(0, cron.length - 1);
         }
         return cron;
+    }
+
+    getCurrentTrack(){
+        return this.mopidy.playback.getCurrentTrack().then(track => {
+            return track.name;
+        }); 
+    }
+
+    getVolume(){
+        return this.mopidy.playback.getVolume().then(volume => {
+            return volume;
+        });
     }
 }
