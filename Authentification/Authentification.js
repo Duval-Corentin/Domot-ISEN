@@ -21,7 +21,7 @@ module.exports = class Auth {
         });
         this.db.each("SELECT * FROM user", (error, row) => {
             if (error) throw error;
-
+            row.is_admin = row.is_admin ? true : false;
             this.users.push(row);
         });
 

@@ -6,6 +6,7 @@ define({ "api": [
     "name": "AddAlarm",
     "group": "Alarm",
     "version": "0.0.2",
+    "description": "<p>Add a new alarm</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -216,6 +217,7 @@ define({ "api": [
     "name": "DeleteAlarm",
     "group": "Alarm",
     "version": "0.0.2",
+    "description": "<p>Remove the alarm with the name &quot;alarm_name&quot; from the program</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -284,6 +286,19 @@ define({ "api": [
         }
       ]
     },
+    "error": {
+      "fields": {
+        "400": [
+          {
+            "group": "400",
+            "type": "string",
+            "optional": false,
+            "field": "AlarmError",
+            "description": "<p>error from the Alarm module</p>"
+          }
+        ]
+      }
+    },
     "filename": "./Alarm/Alarm-router.js",
     "groupTitle": "Alarm"
   },
@@ -294,6 +309,7 @@ define({ "api": [
     "name": "GetAlarm_S_",
     "group": "Alarm",
     "version": "0.0.2",
+    "description": "<p>get all alarm's Objects if &quot;alarm_name&quot; parameter is missing or just the alarm with the requested name</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -385,6 +401,7 @@ define({ "api": [
     "name": "GetPlaylists",
     "group": "Alarm",
     "version": "0.0.2",
+    "description": "<p>return an array of all playlist wich can be used for alarms</p>",
     "success": {
       "fields": {
         "200": [
@@ -435,6 +452,7 @@ define({ "api": [
     "name": "UpdateAlarm",
     "group": "Alarm",
     "version": "0.0.2",
+    "description": "<p>Change 1 or multiples parameter of an existing alarm, names must match anyway</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -645,6 +663,7 @@ define({ "api": [
     "name": "GetPlayingTrack",
     "group": "Alarm_Playback",
     "version": "0.0.2",
+    "description": "<p>return the current playing song</p>",
     "success": {
       "fields": {
         "200": [
@@ -675,6 +694,7 @@ define({ "api": [
     "name": "GetVolume",
     "group": "Alarm_Playback",
     "version": "0.0.2",
+    "description": "<p>return the current volume of the audio server</p>",
     "success": {
       "fields": {
         "200": [
@@ -705,6 +725,7 @@ define({ "api": [
     "name": "PlayPlayback",
     "group": "Alarm_Playback",
     "version": "0.0.2",
+    "description": "<p>play a playlist. /!\\ Must be used for test/demo purpose only !! /!\\</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -818,6 +839,7 @@ define({ "api": [
     "name": "Snooze",
     "group": "Alarm_Playback",
     "version": "0.0.2",
+    "description": "<p>snooze the playing alarm</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -875,6 +897,7 @@ define({ "api": [
     "name": "Stop",
     "group": "Alarm_Playback",
     "version": "0.0.2",
+    "description": "<p>stop the playing alarm</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -932,6 +955,18 @@ define({ "api": [
     "name": "GetRoot",
     "group": "Root",
     "version": "0.0.2",
+    "success": {
+      "fields": {
+        "200": [
+          {
+            "group": "200",
+            "optional": false,
+            "field": "ApiDocs",
+            "description": "<p>Documentation page of the API</p>"
+          }
+        ]
+      }
+    },
     "filename": "./Core/Core.js",
     "groupTitle": "Root"
   },
@@ -942,6 +977,7 @@ define({ "api": [
     "name": "AddUser",
     "group": "User",
     "version": "0.0.2",
+    "description": "<p>add a new user to the system, the user can be a admin privilegied user</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -1068,6 +1104,7 @@ define({ "api": [
     "name": "ChangePassword",
     "group": "User",
     "version": "0.0.2",
+    "description": "<p>change the user's password with the code send by &quot;SendRecoverCode&quot; function</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -1132,6 +1169,7 @@ define({ "api": [
     "name": "DeleteUser",
     "group": "User",
     "version": "0.0.2",
+    "description": "<p>remove a user form the system, must remain at least 1 &quot;admin&quot; user in the system</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -1223,6 +1261,7 @@ define({ "api": [
     "name": "GetUser_S_",
     "group": "User",
     "version": "0.0.2",
+    "description": "<p>Return the list of all user's Object or just one if the &quot;username&quot; parameter is present</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -1314,6 +1353,7 @@ define({ "api": [
     "name": "SendRecoverEmail",
     "group": "User",
     "version": "0.0.2",
+    "description": "<p>send an email with a &quot;change password code&quot; to the user's &quot;recover_email&quot; address return an error if the Module cannot connect to internet.</p>",
     "parameter": {
       "fields": {
         "Parameter": [
@@ -1400,6 +1440,7 @@ define({ "api": [
     "name": "TestUser",
     "group": "User",
     "version": "0.0.2",
+    "description": "<p>test a pair username/password an check if the user can be authentified on the system</p>",
     "parameter": {
       "fields": {
         "Parameter": [

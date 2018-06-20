@@ -7,25 +7,13 @@ var Mopidy = new Mopidy_class();
 var Alarm = new Alarm_class(Mopidy, false);
 
 /**
- * ------ AVAILAIBLES ACTIONS ------
- * - Add Alarm
- * - Get Alarm(S)
- * - Delete Alarm
- * - Update Alarm
- * - Get Playlists
- * - playback : play
- * - playback : snooze
- * - playback : stop 
- * - Mopidy : Get Played Song TO DO 
- * - Mopidy : Get Volume TO DO
- */
-
-/**
  * 
  * @api {post} /alarms AddAlarm
  * @apiName AddAlarm
  * @apiGroup Alarm
  * @apiVersion  0.0.2
+ * 
+ * @apiDescription Add a new alarm
  * 
  * @apiUse Auth
  * @apiUse Request 
@@ -125,6 +113,7 @@ auth_router.post('/', (req, res) => {
  * @apiGroup Alarm
  * @apiVersion  0.0.2
  * 
+ * @apiDescription get all alarm's Objects if "alarm_name" parameter is missing or just the alarm with the requested name  
  * 
  * @apiUse Auth
  * @apiUse Request
@@ -198,7 +187,6 @@ auth_router.get('/', (req, res) => {
 		for (let alarm of Alarm.getAlarms()) {
 			if (req.body.request.alarm_name == alarm.name) {
 				res.send(alarm);
-				return;
 			}
 		}
 		res.status(404).send(String(`alarm with name ${req.body.request.alarm_name} dosen\'t exist`));
@@ -214,6 +202,7 @@ auth_router.get('/', (req, res) => {
  * @apiGroup Alarm
  * @apiVersion  0.0.2
  * 
+ * @apiDescription Remove the alarm with the name "alarm_name" from the program  
  * 
  * @apiUse Auth
  * @apiUse Request
@@ -221,6 +210,7 @@ auth_router.get('/', (req, res) => {
  * 
  * @apiSuccess (200) {Object} AlarmJSON object of the removed alarm 
  * 
+ * @apiError (400) {string} AlarmError error from the Alarm module
  * @apiParamExample  {json} Request-Example:
  * {
  *     "auth" : {
@@ -274,6 +264,8 @@ auth_router.delete('/', (req, res) => {
  * @apiName UpdateAlarm
  * @apiGroup Alarm
  * @apiVersion  0.0.2
+ * 
+ * @apiDescription Change 1 or multiples parameter of an existing alarm, names must match anyway
  * 
  * @apiUse Auth
  * @apiUse Request 
@@ -374,6 +366,8 @@ auth_router.put('/', (req, res) => {
  * @apiGroup Alarm
  * @apiVersion  0.0.2
  * 
+ * @apiDescription return an array of all playlist wich can be used for alarms
+ * 
  * @apiUse Request
  * 
  * @apiSuccess (200) {json} playlistsArray Array with all playlists objects
@@ -421,6 +415,8 @@ router.get("/playlists/", (req, res) => {
  * @apiGroup Alarm.Playback
  * @apiVersion  0.0.2
  * 
+ * @apiDescription play a playlist. /!\ Must be used for test/demo purpose only !! /!\  
+ * 
  * @apiUse Auth
  * @apiUse Request
  * @apiParam {Object} request.alarm Alarm Object to play, not all field are mandatory
@@ -463,6 +459,8 @@ router.get("/playlists/", (req, res) => {
   * @apiGroup Alarm.Playback
   * @apiVersion  0.0.2
   * 
+  * @apiDescription snooze the playing alarm 
+  * 
   * @apiUse Request
   * @apiParam {String} request.state must be at "snooze"
   * 
@@ -489,6 +487,8 @@ router.get("/playlists/", (req, res) => {
   * @apiName Stop
   * @apiGroup Alarm.Playback
   * @apiVersion  0.0.2
+  * 
+  * @apiDescription stop the playing alarm 
   * 
   * @apiUse Request
   * @apiParam {String} request.state must be at "stop"
@@ -563,7 +563,7 @@ router.patch('/playback/', (req, res) => {
  * @apiGroup Alarm.Playback
  * @apiVersion  0.0.2
  * 
- * 
+ * @apiDescription return the current playing song 
  * 
  * @apiSuccess (200) {json} TrackName name of the playing song or false if no songs is playing 
  * @apiSuccessExample {String} Success-Response:
@@ -582,7 +582,7 @@ router.get("/playback/current_track/", (req, res) => {
  * @apiGroup Alarm.Playback
  * @apiVersion  0.0.2
  * 
- * 
+ * @apiDescription return the current volume of the audio server 
  * 
  * @apiSuccess (200) {Number} Volume volume of the audio server in percentage
  * 

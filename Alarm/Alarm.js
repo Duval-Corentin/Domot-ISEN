@@ -104,7 +104,7 @@ module.exports = class Alarm {
 
             for(let alarm of this.alarms.keys()){
                 if(alarm.name == new_alarm.name) throw `alarm with name '${alarm.name}' allready exist, cannot create 2 alarms with same name'`;
-                if(alarm.trigger == new_alarm.trigger) throw 'An alarm allready exist with the same trigger time, cannot trigger 2 alarm at the same time';
+                if(alarm.trigger == new_alarm.trigger) throw 'alarm allready exist with the same trigger time, cannot trigger 2 alarm at the same time';
             }
             return this.mopidy.playlists.getPlaylists().then(playlists => {
                 var playlist_find = false;
@@ -270,6 +270,7 @@ module.exports = class Alarm {
             return this.mopidy.playback.stop().then(() => {
                 const old_playing = this.playing;
                 this.playing = undefined;
+                this.mqtt_client.publish("/alarms/stop", JSON.stringify(old_playing));
                 return old_playing;
             });
         } else if (this.snoozed) {

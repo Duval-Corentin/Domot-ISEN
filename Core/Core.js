@@ -51,7 +51,9 @@ app.use('/api/alarms', check_user, alarm_router.auth_router);
  * @api {get} / Root 
  * @apiName GetRoot
  * @apiGroup Root
- * @apiVersion  0.0.2  
+ * @apiVersion  0.0.2
+ * 
+ * @apiSuccess (200) ApiDocs Documentation page of the API  
  */
 app.use(express.static(__dirname + "/../Docs/apidoc"));
 app.get('/api/', (req, res) => {
@@ -74,6 +76,8 @@ https.createServer({
  * @apiName TestUser
  * @apiGroup User
  * @apiVersion  0.0.2
+ * 
+ * @apiDescription test a pair username/password an check if the user can be authentified on the system
  * 
  * @apiUse Request
  * @apiParam {String} request.username username of the user to test
@@ -111,6 +115,7 @@ app.put("/api/users", (req, res) => {
  * @apiGroup User
  * @apiVersion  0.0.2
  * 
+ * @apiDescription Return the list of all user's Object or just one if the "username" parameter is present 
  * 
  * @apiUse Auth
  * @apiUse Request
@@ -146,7 +151,7 @@ app.put("/api/users", (req, res) => {
 app.get("/api/users", check_user, (req, res) => {
     const request = req.body.request;
     const users = Auth.getUsers();
-    if (request) {
+    if (request.username) {
         for (let user of users) {
             if (user.username == request.username) {
                 res.send(user);
@@ -165,6 +170,7 @@ app.get("/api/users", check_user, (req, res) => {
  * @apiGroup User
  * @apiVersion  0.0.2
  * 
+ * @apiDescription add a new user to the system, the user can be a admin privilegied user
  * 
  * @apiUse Auth
  * @apiUse Request
@@ -221,6 +227,7 @@ app.post("/api/users", check_user, (req, res) => {
  * @apiGroup User
  * @apiVersion  0.0.2
  * 
+ * @apiDescription send an email with a "change password code" to the user's "recover_email" address return an error if the Module cannot connect to internet.
  * 
  * @apiUse Request 
  * @apiParam {String} [request.username] username of the lost account 
@@ -261,6 +268,7 @@ app.post("/api/users/recover_email", (req, res) => {
  * @apiGroup User
  * @apiVersion  0.0.2
  * 
+ * @apiDescription change the user's password with the code send by "SendRecoverCode" function
  * 
  * @apiUse Request
  * @apiParam {String} username username of the account
@@ -295,6 +303,7 @@ app.put("/api/users/change_password", (req, res) => {
  * @apiGroup User
  * @apiVersion  0.0.2
  * 
+ * @apidescription remove a user form the system, must remain at least 1 "admin" user in the system
  * 
  * @apiUse Auth
  * @apiUse Request
